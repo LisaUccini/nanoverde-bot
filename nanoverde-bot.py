@@ -4,8 +4,7 @@ import re
 from slackclient import SlackClient
 
 
-# instantiate Slack client
-slack_client = SlackClient(os.environ.get('xoxb-430388344151-429397040834-J6OAPxF5nyhE1WNcEedSjuk0'))
+
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_id = None
 
@@ -22,8 +21,11 @@ def parse_bot_commands(slack_events):
     """
     for event in slack_events:
         if event["type"] == "message" and not "subtype" in event:
-            user_id, message = parse_direct_mention(event["text"])
-            if user_id == bot_id:
+            message = event["text"]
+            user_id=""
+            if not event["channel"] == "DCNCW4E0P":
+                user_id, message = parse_direct_mention(event["text"])
+            if user_id == bot_id or event["channel"] == "DCNCW4E0P":
                 return message, event["channel"]
     return None, None
 
@@ -32,6 +34,8 @@ def parse_direct_mention(message_text):
         Finds a direct mention (a mention that is at the beginning) in message text
         and returns the user ID which was mentioned. If there is no direct mention, returns None
     """
+    matches = re.search(MENTION_REGEX, message_text)
+    print matches
     matches = re.search(MENTION_REGEX, message_text)
     # the first group contains the username, the second group contains the remaining message
     return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
@@ -57,12 +61,18 @@ def handle_command(command, channel):
     )
 
 if __name__ == "__main__":
+    # instantiate Slack client
+    #print 
+    
+    slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+    
     if slack_client.rtm_connect(with_team_state=False):
         print("Starter Bot connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
         while True:
             command, channel = parse_bot_commands(slack_client.rtm_read())
+            print command, channel
             if command:
                 handle_command(command, channel)
             time.sleep(RTM_READ_DELAY)

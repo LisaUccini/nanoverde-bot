@@ -46,7 +46,6 @@ def parse_direct_mention(message_text):
         and returns the user ID which was mentioned. If there is no direct mention, returns None
     """
     matches = re.search(MENTION_REGEX, message_text)
-    print matches
     matches = re.search(MENTION_REGEX, message_text)
     # the first group contains the username, the second group contains the remaining message
     return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
@@ -79,18 +78,20 @@ def new_user(comando, event):
     """
         Executes bot command to presentation new user
     """
+    global info_user_tag
     code = event["user"]
     user = comando[2]
     user = user.encode('utf-8')
     risposta = "Benvenuta, " + comando[2]
     
-
+    #open file containing the information of each user
+    #example file -> code tag;name user;code slack
     f=open("../nanoverde/utenti.txt", "r")
     file=f.readlines()
     f.close()
     risultato=""
-    fine = False
 
+    #verify that the user does not already exist
     for i,var in enumerate(file):
         line = string.split(file[i],"\n")
         appo = line[0]
@@ -108,52 +109,60 @@ def new_user(comando, event):
                 for i , var in enumerate(file):
                     f.write(file[i])
                 f.close()
+                return risposta
 
-    if not(fine):
-        if info_user_tag == []:
-            risposta = user + ", hai "+ str(TIME_TAG) +" minuti per passare 5 volte il tag"
-            start = strftime("%H:%M")
-            minute = string.split(start,":")
-            minute = int(minute[1]) + TIME_TAG
-            minute = str(minute)
-            final = strftime("%H:") + minute
-            info_user_tag.append(user)
-            info_user_tag.append(code)
-            info_user_tag.append(start)
-            info_user_tag.append(final)
-            info_user_tag.append(event["channel"])
-        else:
-            risposta = "in questo momento sto aggiungendo un'altro utente, ritenta tra 5 minuti"
+    #only if the user has not been found
+    if info_user_tag == []:
+        risposta = user + ", hai "+ str(TIME_TAG) +" minuti per passare 5 volte il tag"
+        start = strftime("%H:%M")
+        minute = string.split(start,":")
+        minute = int(minute[1]) + TIME_TAG
+        minute = str(minute)
+        if minute < 10:
+            minute = "0" + minute
+        final = strftime("%H:") + minute
+        info_user_tag.append(user)
+        info_user_tag.append(code)
+        info_user_tag.append(start)
+        info_user_tag.append(final)
+        info_user_tag.append(event["channel"])
+    else:
+        risposta = "in questo momento sto aggiungendo un'altro utente, ritenta tra 5 minuti"
 
     return risposta
 
 def add_user_tag():
+    """
+        Tag acquisition and new user addition
+    """
+
+    global info_user_tag
     f=open("../nanoverde/tagpassed.txt", "r")
     tagf = f.readlines()
     f.close()
     soluzione = []
 
-    print "alla ricerca"
+    #research tag in file
+    #example file: tag code;time(%H:%M)
     for i,var in enumerate(tagf):
         appo = string.split(var, ";")
         time = appo[1]
         if time <= info_user_tag[3] and time >= info_user_tag[2]:
             soluzione.append(appo[0])
 
-    print soluzione
     trovato=True      
     if len(soluzione) >= 5:
-        appo = soluzione[0]
+        result = soluzione[0]
         for i , var in enumerate(soluzione):
-            if not(appo == var):
+            if not(result == var):
                 trovato=False
                 continue
     
+    #check if the tag was found
     text = "ERRORE: il tag non è stato passato correttamente"
     if trovato:
         text = "Benvenuta " + info_user_tag[0]
-        utente = appo + ";" + info_user_tag[0] + ";" + info_user_tag[1] + "\n"
-        print utente
+        utente = result + ";" + info_user_tag[0] + ";" + info_user_tag[1] + "\n"
         f=open("../nanoverde/utenti.txt", "r")
         file=f.readlines()
         f.close()
@@ -174,7 +183,6 @@ def add_user_tag():
 
 if __name__ == "__main__":
     # instantiate Slack client
-    #print 
     
     slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
     
@@ -182,8 +190,8 @@ if __name__ == "__main__":
         print("Starter Bot connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
+
         while True:
-            print info_user_tag
             if not(info_user_tag == []):
                 if strftime("%H:%M")>info_user_tag[3]:
                     add_user_tag()
@@ -191,5 +199,6 @@ if __name__ == "__main__":
             if command:
                 handle_command(command, event)
             time.sleep(RTM_READ_DELAY)
+
     else:
         print("Connection failed. Exception traceback printed above.")

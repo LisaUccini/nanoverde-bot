@@ -6,6 +6,7 @@ import time
 import re
 import string
 import sys
+import datetime
 from time import strftime
 from slackclient import SlackClient
 
@@ -17,7 +18,7 @@ info_user_tag = []
 
 # constants
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
-EXAMPLE_COMMAND = "do"
+AWARD_COMMAND = "premio"
 PRESENTATION_COMMAND = "ciao sono "
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 TIME_TAG = 1
@@ -61,8 +62,8 @@ def handle_command(command, event):
     response = None
     # This is where you start to implement more commands!
     comando = command.rsplit(" ")
-    if command.startswith(EXAMPLE_COMMAND):
-        response = "Sure...write some more code then I can do that!"
+    if command.startswith(AWARD_COMMAND):
+        response = verify_award(command, event)
     else:
         if command.startswith(PRESENTATION_COMMAND):
             response = new_user(comando,event)
@@ -73,6 +74,32 @@ def handle_command(command, event):
         channel=event["channel"],
         text=response or default_response
     )
+
+def verify_award(comando, event):
+    """
+        verify if the user has already collected the award
+    """
+    response = "Non hai ancora ritirato il premio"
+    utente = ricerca_utente(event['user'])
+    if not(utente == ""):
+        oggi = datetime.datetime.today()
+        stoday = oggi.strftime("%y-%m-%d")
+        stoday = "20"+stoday
+        f = open("../nanoverde/documento.txt", "r")
+        leggi = f.readlines()
+        f.close()
+        for i, val in enumerate(leggi):
+            premio = string.split(val, ";")
+            data = premio[1]
+            data = string.split(data, "\n")
+            data = data[0]
+            if data == stoday:
+                if utente == premio[0]:
+                    response = "Hai già ritirato il premio"
+    else:
+        response = "Non ti conosco, presentati"
+
+    return response
 
 def new_user(comando, event):
     """
@@ -93,7 +120,7 @@ def new_user(comando, event):
 
     #verify that the user does not already exist
     for i,var in enumerate(file):
-        line = string.split(file[i],"\n")
+        line = string.split(var,"\n")
         appo = line[0]
         appo = string.split(appo,";")
         if appo[1] == user:
@@ -110,6 +137,11 @@ def new_user(comando, event):
                     f.write(file[i])
                 f.close()
                 return risposta
+        else:
+            if  len(appo) == 3:
+                if appo[2] == code:
+                    risposta = "Te non sei "+ user +", te sei "+ appo[1]
+                    return risposta
 
     #only if the user has not been found
     if info_user_tag == []:
@@ -179,7 +211,22 @@ def add_user_tag():
     )
     info_user_tag = []
 
-
+def ricerca_utente(code):
+    """
+        search for user name from the slack code
+    """
+    f = open("../nanoverde/utenti.txt", "r")
+    read = f.readlines()
+    f.close()
+    for i,val in enumerate(read):
+        user = string.split( val, ";")
+        if len(user)==3:
+            u = user[2]
+            u = string.split( u , "\n")
+            u = u[0]
+            if u == code:
+                return user[1]
+    return ""
 
 if __name__ == "__main__":
     # instantiate Slack client

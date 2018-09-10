@@ -15,6 +15,7 @@ from slackclient import SlackClient
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_id = None
 info_user_tag = []
+events_list = [["mancano 8 ore all'apertura", 4, datetime.time(10, 0)]]
 
 # constants
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
@@ -80,14 +81,16 @@ def verify_award(comando, event):
         verify if the user has already collected the award
     """
     response = "Non hai ancora ritirato il premio"
-    utente = ricerca_utente(event['user'])
-    if not(utente == ""):
+    utente = ricerca_utente(event['channel'])
+
+    if utente != "":
         oggi = datetime.datetime.today()
         stoday = oggi.strftime("%y-%m-%d")
         stoday = "20"+stoday
         f = open("../nanoverde/documento.txt", "r")
         leggi = f.readlines()
         f.close()
+
         for i, val in enumerate(leggi):
             premio = string.split(val, ";")
             data = premio[1]
@@ -96,6 +99,7 @@ def verify_award(comando, event):
             if data == stoday:
                 if utente == premio[0]:
                     response = "Hai già ritirato il premio"
+
     else:
         response = "Non ti conosco, presentati"
 
@@ -106,18 +110,17 @@ def new_user(comando, event):
         Executes bot command to presentation new user
     """
     global info_user_tag
-    code = event["user"]
+    code = event["channel"]
     user = comando[2]
     user = user.encode('utf-8')
     risposta = "Benvenuta, " + comando[2]
     
     #open file containing the information of each user
     #example file -> code tag;name user;code slack
-    f=open("../nanoverde/utenti.txt", "r")
-    file=f.readlines()
+    f = open("../nanoverde/utenti.txt", "r")
+    file = f.readlines()
     f.close()
-    risultato=""
-
+    result = ""
     #verify that the user does not already exist
     for i,var in enumerate(file):
         line = string.split(var,"\n")
@@ -130,34 +133,28 @@ def new_user(comando, event):
                 else:
                     return "Conosco già "+ user+" e non sei te"
             else:
-                file[i] = line[0] + ";" + code + "\n"
-                f=open("../nanoverde/utenti.txt", "w")
-                file.append(risultato)
+                var = line[0] + ";" + code + "\n"
+                f = open("../nanoverde/utenti.txt", "w")
+                file.append(result)
                 for i , var in enumerate(file):
-                    f.write(file[i])
+                    f.write(var)
                 f.close()
                 return risposta
         else:
             if  len(appo) == 3:
                 if appo[2] == code:
-                    risposta = "Te non sei "+ user +", te sei "+ appo[1]
+                    risposta = "Non sei "+ user +", sei "+ appo[1]
                     return risposta
 
     #only if the user has not been found
     if info_user_tag == []:
         risposta = user + ", hai "+ str(TIME_TAG) +" minuti per passare 5 volte il tag"
-        start = strftime("%H:%M")
-        minute = string.split(start,":")
-        minute = int(minute[1]) + TIME_TAG
-        minute = str(minute)
-        if minute < 10:
-            minute = "0" + minute
-        final = strftime("%H:") + minute
+        start = time.time()
+        final = start + (60 * TIME_TAG)
         info_user_tag.append(user)
         info_user_tag.append(code)
         info_user_tag.append(start)
         info_user_tag.append(final)
-        info_user_tag.append(event["channel"])
     else:
         risposta = "in questo momento sto aggiungendo un'altro utente, ritenta tra 5 minuti"
 
@@ -169,44 +166,54 @@ def add_user_tag():
     """
 
     global info_user_tag
-    f=open("../nanoverde/tagpassed.txt", "r")
+    print info_user_tag
+    f = open("../nanoverde/tagpassed.txt", "r")
     tagf = f.readlines()
     f.close()
-    soluzione = []
+    solution = []
+    find = True 
+    result = "" 
 
     #research tag in file
     #example file: tag code;time(%H:%M)
-    for i,var in enumerate(tagf):
-        appo = string.split(var, ";")
-        time = appo[1]
-        if time <= info_user_tag[3] and time >= info_user_tag[2]:
-            soluzione.append(appo[0])
-
-    trovato=True      
-    if len(soluzione) >= 5:
-        result = soluzione[0]
-        for i , var in enumerate(soluzione):
-            if not(result == var):
-                trovato=False
-                continue
-    
-    #check if the tag was found
     text = "ERRORE: il tag non è stato passato correttamente"
-    if trovato:
+    if tagf != []:
+        for i,var in enumerate(tagf):
+            if var != "" or var != "\n":
+                tag_time = string.split(var, ";")
+                time = tag_time[1]
+                time = string.split(time, "\n")
+                time = time [0]
+                if time < str(info_user_tag[3]) and time > str(info_user_tag[2]):
+                    solution.append(tag_time[0])
+
+        if len(solution) >= 5:
+            result = solution[0]
+            for i , var in enumerate(solution):
+                if result != var:
+                    find=False
+                    continue
+    else:
+        find = False
+            
+        
+    #check if the tag was found
+    
+    if find:
         text = "Benvenuta " + info_user_tag[0]
         utente = result + ";" + info_user_tag[0] + ";" + info_user_tag[1] + "\n"
-        f=open("../nanoverde/utenti.txt", "r")
+        f = open("../nanoverde/utenti.txt", "r")
         file=f.readlines()
         f.close()
-        f=open("../nanoverde/utenti.txt", "w")
+        f = open("../nanoverde/utenti.txt", "w")
         file.append(utente)
         for i , var in enumerate(file):
-            f.write(file[i])
+            f.write(var)
         f.close()
 
     slack_client.api_call(
         "chat.postMessage",
-        channel=info_user_tag[4],
+        channel=info_user_tag[1],
         text= text
     )
     info_user_tag = []
@@ -216,22 +223,55 @@ def ricerca_utente(code):
         search for user name from the slack code
     """
     f = open("../nanoverde/utenti.txt", "r")
-    read = f.readlines()
+    file_utenti = f.readlines()
     f.close()
-    for i,val in enumerate(read):
+    for i,val in enumerate(file_utenti):
         user = string.split( val, ";")
         if len(user)==3:
-            u = user[2]
-            u = string.split( u , "\n")
-            u = u[0]
-            if u == code:
+            slack_utente = user[2]
+            slack_utente = string.split( slack_utente , "\n")
+            slack_utente = slack_utente[0]
+            if slack_utente == code:
                 return user[1]
     return ""
+
+def periodic_events():
+    global events_list
+    daynow = datetime.date.today().weekday()
+    timenow = datetime.datetime.now()
+    hours = timenow.hour
+    minutes = timenow.minute
+    seconds = timenow.second
+
+    f = open("../nanoverde/utenti.txt", "r")
+    file_utenti = f.readlines()
+    f.close()
+
+    text = []
+
+    for i, val in enumerate(events_list):
+        if len(val) == 3:
+            if type(val[1]) == int:
+                if hours == val[2].hour and minutes == val[2].minute and seconds == val[2].second and daynow == val[1]:
+                    text.append(val[0])
+
+    for i, val in enumerate(file_utenti):
+        val = string.split(val, ";")
+        if len(val) == 3:
+            for j, var in enumerate(text):
+                print var
+                event_channel = string.split(val[2], "\n")
+                event_channel = event_channel[0]
+                slack_client.api_call(
+                    "chat.postMessage",
+                    channel = event_channel,
+                    text = var
+                )
 
 if __name__ == "__main__":
     # instantiate Slack client
     
-    slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+    slack_client = SlackClient('xoxb-430388344151-429397040834-5lhGNauHGkxlfb4v6GJIaH4H')
     
     if slack_client.rtm_connect(with_team_state=False):
         print("Starter Bot connected and running!")
@@ -239,8 +279,9 @@ if __name__ == "__main__":
         bot_id = slack_client.api_call("auth.test")["user_id"]
 
         while True:
+            periodic_events()
             if not(info_user_tag == []):
-                if strftime("%H:%M")>info_user_tag[3]:
+                if time.time() > info_user_tag[3]:
                     add_user_tag()
             command, event = parse_bot_commands(slack_client.rtm_read())
             if command:

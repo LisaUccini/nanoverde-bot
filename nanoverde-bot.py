@@ -15,7 +15,7 @@ from slackclient import SlackClient
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_id = None
 info_user_tag = []
-events_list = [["mancano 8 ore all'apertura", 4, datetime.time(10, 0)]]
+events_list = [["domani alle 18 apre il nanoverde", 3, datetime.time(18, 0)], ["apertura", 4, 2]]
 
 # constants
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
@@ -236,6 +236,10 @@ def ricerca_utente(code):
     return ""
 
 def periodic_events():
+    """
+        generates periodic events
+    """
+
     global events_list
     daynow = datetime.date.today().weekday()
     timenow = datetime.datetime.now()
@@ -246,32 +250,41 @@ def periodic_events():
     f = open("../nanoverde/utenti.txt", "r")
     file_utenti = f.readlines()
     f.close()
-
     text = []
 
-    for i, val in enumerate(events_list):
-        if len(val) == 3:
-            if type(val[1]) == int:
-                if hours == val[2].hour and minutes == val[2].minute and seconds == val[2].second and daynow == val[1]:
-                    text.append(val[0])
+    if hours > 9 and hours < 22:
 
-    for i, val in enumerate(file_utenti):
-        val = string.split(val, ";")
-        if len(val) == 3:
-            for j, var in enumerate(text):
-                print var
-                event_channel = string.split(val[2], "\n")
-                event_channel = event_channel[0]
-                slack_client.api_call(
-                    "chat.postMessage",
-                    channel = event_channel,
-                    text = var
-                )
+        #research and analysis of events
+        for i, val in enumerate(events_list):
+            if len(val) == 3:
+                if type(val[2]) == int:
+                    if hours % val[2] == 0: #and daynow == val[1]:
+                        if val[0] == "apertura":
+                            text.append("il nanoverde apre tra " + str(18-hours) + "h")
+                else:
+                    if hours == val[2].hour and minutes == val[2].minute and seconds == val[2].second and daynow == val[1]:
+                        text.append(val[0])
+                
+
+        #write events to known channels
+        for i, val in enumerate(file_utenti):
+            val = string.split(val, ";")
+            if len(val) == 3:
+                for j, var in enumerate(text):
+                    print var
+                    event_channel = string.split(val[2], "\n")
+                    event_channel = event_channel[0]
+                    slack_client.api_call(
+                        "chat.postMessage",
+                        channel = event_channel,
+                        text = var
+                    )
+
 
 if __name__ == "__main__":
     # instantiate Slack client
     
-    slack_client = SlackClient('xoxb-430388344151-429397040834-5lhGNauHGkxlfb4v6GJIaH4H')
+    slack_client = SlackClient('xoxb-430388344151-429397040834-7v98qoQ2YdPhnl0tMfOINadl')
     
     if slack_client.rtm_connect(with_team_state=False):
         print("Starter Bot connected and running!")

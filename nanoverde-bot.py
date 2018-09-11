@@ -14,11 +14,12 @@ from slackclient import SlackClient
 
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_id = None
-info_user_tag = []
-utenti_path = "../nanoverde/utenti.txt"
-tag_path = "../nanoverde/tagpassed.txt"
-doc_path = "../nanoverde/documento.txt"
+
 # constants
+INFO_USER_TAG = []
+UTENTI_PATH = "../nanoverde/utenti.txt"
+TAG_PATH = "../nanoverde/tagpassed.txt"
+DOC_PATH = "../nanoverde/documento.txt"
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 AWARD_COMMAND = "premio"
 PRESENTATION_COMMAND = "ciao sono "
@@ -58,7 +59,7 @@ def handle_command(command, event):
         Executes bot command if the command is known
     """
     # Default response is help text for the user
-    default_response = "Scrivere help"
+    default_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio "
 
     # Finds and executes the given command, filling in response
     response = None
@@ -81,21 +82,26 @@ def verify_award(comando, event):
     """
         verify if the user has already collected the award
     """
+    USER = 0
+    DATA = 1
+
     response = "Non hai ancora ritirato il premio"
     utente = ricerca_utente(event['channel'])
 
     if utente != "":
         oggi = datetime.datetime.today()
         stoday = oggi.strftime("%Y-%m-%d")
-        with open(doc_path, "r") as f:
+        f =  open(DOC_PATH, "r")
+        with f:
             leggi = f.readlines()
+            f.close
 
         for val in leggi:
             premio = string.split(val, ";")
             data = premio[1]
-            data = string.split(data, "\n")
+            data = string.split(premio[DATA], "\n")
             data = data[0]
-            if data == stoday and utente == premio[0]:
+            if data == stoday and utente == premio[USER]:
                     response = "Hai già ritirato il premio"
 
     else:
@@ -107,7 +113,9 @@ def new_user(comando, event):
     """
         Executes bot command to presentation new user
     """
-    global info_user_tag
+    UTENTE = 1
+    CHANN = 2
+    global INFO_USER_TAG
     code = event["channel"]
     user = comando[2]
     user = user.encode('utf-8')
@@ -115,8 +123,10 @@ def new_user(comando, event):
     
     #open file containing the information of each user
     #example file -> code tag;name user;code slack
-    with open(utenti_path, "r") in f:
+    f = open(UTENTI_PATH, "r")
+    with f:
         file = f.readlines()
+        f.close
 
     result = ""
     #verify that the user does not already exist
@@ -124,34 +134,36 @@ def new_user(comando, event):
         line = string.split(var,"\n")
         appo = line[0]
         appo = string.split(appo,";")
-        if appo[1] == user:
+        if appo[UTENTE] == user:
             if len(appo) == 3:
-                if appo[2] == code:
+                if appo[CHANN] == code:
                     return "Già ti conosco "+ user
                 else:
                     return "Conosco già "+ user+" e non sei te"
             else:
                 var = line[0] + ";" + code + "\n"
-                with open(utenti_path, "w") in f:
+                f =  open(UTENTI_PATH, "w")
+                with f:
                     file.append(result)
+                    f.close
                     for var in file:
                         f.write(var)
                 return risposta
         else:
             if  len(appo) == 3:
-                if appo[2] == code:
-                    risposta = "Non sei "+ user +", sei "+ appo[1]
+                if appo[CHANN] == code:
+                    risposta = "Non sei "+ user +", sei "+ appo[UTENTE]
                     return risposta
 
     #only if the user has not been found
-    if info_user_tag == []:
+    if INFO_USER_TAG == []:
         risposta = user + ", hai "+ str(TIME_TAG) +" minuti per passare 5 volte il tag"
         start = time.time()
         final = start + (60 * TIME_TAG)
-        info_user_tag.append(user)
-        info_user_tag.append(code)
-        info_user_tag.append(start)
-        info_user_tag.append(final)
+        INFO_USER_TAG.append(user)
+        INFO_USER_TAG.append(code)
+        INFO_USER_TAG.append(start)
+        INFO_USER_TAG.append(final)
     else:
         risposta = "in questo momento sto aggiungendo un'altro utente, ritenta tra 5 minuti"
 
@@ -161,11 +173,17 @@ def add_user_tag():
     """
         Tag acquisition and new user addition
     """
+    START = 2
+    FINAL = 3
+    USER = 0
+    CHANN = 1
+    global INFO_USER_TAG
 
-    global info_user_tag
-    print info_user_tag
-    with open(tag_path, "r") in f:
+    f =  open(TAG_PATH, "r")
+    with f:
         tagf = f.readlines()
+        f.close
+
     solution = []
     find = True 
     result = "" 
@@ -180,7 +198,7 @@ def add_user_tag():
                 time = tag_time[1]
                 time = string.split(time, "\n")
                 time = time [0]
-                if time < str(info_user_tag[3]) and time > str(info_user_tag[2]):
+                if time < str(INFO_USER_TAG[FINAL]) and time > str(INFO_USER_TAG[START]):
                     solution.append(tag_time[0])
 
         if len(solution) >= 5:
@@ -196,28 +214,35 @@ def add_user_tag():
     #check if the tag was found
     
     if find:
-        text = "Benvenuta " + info_user_tag[0]
-        utente = result + ";" + info_user_tag[0] + ";" + info_user_tag[1] + "\n"
-        with open(utenti_path, "r") in f:
+        text = "Benvenuta " + INFO_USER_TAG[USER]
+        utente = result + ";" + INFO_USER_TAG[USER] + ";" + INFO_USER_TAG[CHANN] + "\n"
+        f =  open(UTENTI_PATH, "r")
+        with f:
             file=f.readlines()
-        with open(utenti_path, "w") in f:
+            f.close
+        f = open(UTENTI_PATH, "w")
+        with f:
             file.append(utente)
+            f.close
             for var in file:
-                f.write(var)
+                f.write(file)
 
     slack_client.api_call(
         "chat.postMessage",
-        channel=info_user_tag[1],
+        channel=INFO_USER_TAG[CHANN],
         text= text
     )
-    info_user_tag = []
+    INFO_USER_TAG = []
 
 def ricerca_utente(code):
     """
         search for user name from the slack code
     """
-    with open(utenti_path, "r") in f:
+    f = open(UTENTI_PATH, "r")
+    with f:
         file_utenti = f.readlines()
+        f.close
+
     for val in file_utenti:
         user = string.split( val, ";")
         if len(user)==3:
@@ -232,6 +257,10 @@ def periodic_events(events_list):
     """
         generates periodic events
     """
+    TEXT = 0
+    DAY = 1
+    TIME = 2
+    CHANN = 3    
 
     daynow = datetime.date.today().weekday()
     timenow = datetime.datetime.now()
@@ -239,44 +268,33 @@ def periodic_events(events_list):
     minutes = timenow.minute
     seconds = timenow.second
 
-    with open(utenti_path, "r") in f:
-        file_utenti = f.readlines()
-    text = []
+    response = ""
 
     if hours > 9 and hours < 22:
 
-        #research and analysis of events
+        #research and analysis of events and write events to channels
         for val in events_list:
-            if len(val) == 3:
-                if type(val[2]) == int:
-                    if hours % val[2] == 0: #and daynow == val[1]:
-                        if val[0] == "apertura":
-                            text.append("il nanoverde apre tra " + str(18-hours) + "h")
+            if len(val) == 4:
+                if type(val[TIME]) == int:
+                    if hours % val[TIME] == 0 and daynow == val[DAY]:
+                        if val[TEXT] == "apertura":
+                            response = ("il nanoverde apre tra " + str(18-hours) + "h")
                 else:
-                    if hours == val[2].hour and minutes == val[2].minute and seconds == val[2].second and daynow == val[1]:
-                        text.append(val[0])
-                
+                    if hours == val[TIME].hour and minutes == val[TIME].minute and seconds == val[TIME].second and daynow == val[DAY]:
+                        response = val[0]
 
-        #write events to known channels
-        for val in file_utenti:
-            val = string.split(val, ";")
-            if len(val) == 3:
-                for var in text:
-                    print var
-                    event_channel = string.split(val[2], "\n")
-                    event_channel = event_channel[0]
+                for i in val[CHANN]:
                     slack_client.api_call(
                         "chat.postMessage",
-                        channel = event_channel,
-                        text = var
+                        channel = i,
+                        text = response
                     )
-
 
 if __name__ == "__main__":
     # instantiate Slack client
     
-    #["text", number of day(monday = 0...), time or duration ]
-    events_list = [["domani alle 18 apre il nanoverde", 3, datetime.time(18, 0)], ["apertura", 4, 2]]
+    #["text", number of day(monday = 0...), time or duration, lista con canali di destinazione ]
+    events_list = [["domani alle 18 apre il nanoverde", 3, datetime.time(18, 0), ['DCNCW4E0P']], ["apertura", 4, 2, ['DCNCW4E0P']]]
     
     slack_client = SlackClient('xoxb-430388344151-429397040834-XK6mNosxeRMa3JFZklnuteRe')
     
@@ -287,8 +305,8 @@ if __name__ == "__main__":
 
         while True:
             periodic_events(events_list)
-            if info_user_tag != []:
-                if time.time() > info_user_tag[3]:
+            if INFO_USER_TAG != []:
+                if time.time() > INFO_USER_TAG[3]:
                     add_user_tag()
             command, event = parse_bot_commands(slack_client.rtm_read())
             if command:

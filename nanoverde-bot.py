@@ -18,9 +18,9 @@ bot_id = None
 
 # constants
 INFO_USER_TAG = []
-UTENTI_PATH = "./utenti.txt"
-TAG_PATH = "./tagpassed.txt"
-DOC_PATH = "./documento.txt"
+UTENTI_PATH = "/home/root/utenti.txt"
+TAG_PATH = "/home/root/tagpassed.txt"
+DOC_PATH = "/home/root/documento.txt"
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 AWARD_COMMAND = "premio"
 CIAO_COMMAND ="ciao nano"
@@ -74,6 +74,7 @@ def handle_command(command, event):
     global NATALE_COMMAND
     global MISSINGH_COMMAND
     global HELP_COMMAND
+    print "il comando è arrivato"
     # Default response is help text for the user
     help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancati - quante ore mi mancano per poter prendere il premio"
     default_response = "Scusa, non ho capito o non ti conosco"
@@ -451,7 +452,7 @@ if __name__ == "__main__":
     #["text", number of day(monday = 0...), time or duration, lista con canali di destinazione ]
     events_list = [["domani alle 18 apre il nanoverde", 3, datetime.time(18, 0), ['DCNCW4E0P']], ["apertura", 4, 3, ['DCNCW4E0P']]]
     
-    slack_client = SlackClient('xoxb-430388344151-429397040834-YwTVHBsQjuvouwg1CjqaPPqs')
+    slack_client = SlackClient('TOKEN')
     
     if slack_client.rtm_connect(with_team_state=False):
         print("Starter Bot connected and running!")

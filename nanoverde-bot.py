@@ -18,12 +18,12 @@ bot_id = None
 
 # constants
 INFO_USER_TAG = []
-UTENTI_PATH = "../nanoverde/utenti.txt"
-TAG_PATH = "../nanoverde/tagpassed.txt"
-DOC_PATH = "../nanoverde/documento.txt"
+UTENTI_PATH = "./utenti.txt"
+TAG_PATH = "./tagpassed.txt"
+DOC_PATH = "./documento.txt"
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 AWARD_COMMAND = "premio"
-CIAO_COMMAND ="ciao"
+CIAO_COMMAND ="ciao nano"
 COMESTAI_COMMAND = "come stai?"
 PRESENTATION_COMMAND = "ciao sono "
 APERTURA_COMMAND = "apertura"
@@ -75,49 +75,47 @@ def handle_command(command, event):
     global MISSINGH_COMMAND
     global HELP_COMMAND
     # Default response is help text for the user
-    help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde "
-    default_response = "Scusa, non ho capito"
+    help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancati - quante ore mi mancano per poter prendere il premio"
+    default_response = "Scusa, non ho capito o non ti conosco"
     # Finds and executes the given command, filling in response
     response = None
     # This is where you start to implement more commands!
     comando = command.rsplit(" ")
     utente = ricerca_utente(event["user"])
-    if utente == "":
-        response = "Non ti conosco, presentati. Piacere io sono Nanoverde"  
-    else:  
+    print utente
+
+    if command.startswith(PRESENTATION_COMMAND):
+        response = new_user(comando,event)
+
+    if command.startswith(CIAO_COMMAND):
+        response = "ciao "+ricerca_utente(event["user"])+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+        if utente == "":
+            response = response + "Te chi sei? non ti conosco"
+    if command.startswith(COMESTAI_COMMAND):
+        response = "io bene, te?"
+                
+    if command.startswith(NATALE_COMMAND):
+        oggi = datetime.datetime.now()
+        natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")
+        gg = natale - oggi
+        oggi = oggi.strftime("%y/%m/%d")
+        response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"
+
+    if command.startswith(APERTURA_COMMAND):
+        response = open_nano()
+
+    if command.startswith(HELP_COMMAND):
+        response = help_response
+    print utente
+
+    if utente is not None :
         if command.startswith(AWARD_COMMAND):
             response = verify_award(command, event)
 
-        if command.startswith(PRESENTATION_COMMAND):
-            response = new_user(comando,event)
-        
-        if command.startswith(CIAO_COMMAND):
-            response = "ciao "+ricerca_utente(event["user"])+", io sono nanoverde-bot. Non ti conosco, chi sei?"
-            f = open(UTENTI_PATH, "r")
-            with f:
-                utenti = f.readlines()
-                f.close
-            for i in utenti:
-                user = string.split(i, ";")
-                print user[2], event["user"], len(user)
-                if len(user) == 3 and user[2] == event["user"]:
-                    response = "ciao "+ricerca_utente(event["user"])+", io sono nanoverde-bot."
-
-        if command.startswith(COMESTAI_COMMAND):
-            response = "io bene, te?"
-                    
-        if command.startswith(NATALE_COMMAND):
-            oggi = datetime.datetime.now()
-            natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")
-            gg = natale - oggi
-            oggi = oggi.strftime("%y/%m/%d")
-            response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"
-
-        if command.startswith(APERTURA_COMMAND):
-            response = open_nano()
-
         if command.startswith(MISSINGH_COMMAND):
-            response = missing_hours(event) #fatto  ma da controllare
+            response = missing_hours(event) 
+    
+    
         
     print response
     event["channel"]
@@ -274,36 +272,40 @@ def new_user(comando, event):
         file = f.readlines()
         f.close
 
-    result = ""
     #verify that the user does not already exist
-    for var in file:
+    for i,var in enumerate(file):
         line = string.split(var,"\n")
         appo = line[0]
         appo = string.split(appo,";")
-        if appo[UTENTE] == user:
-            if len(appo) == 3:
-                if appo[SLACK_USER] == code:
-                    return "Già ti conosco "+ user
+        if len(appo) >= 2:
+            if appo[UTENTE] == user:
+                if len(appo) == 3:
+                    if appo[SLACK_USER] == code:
+                        return "Già ti conosco "+ user
+                    else:
+                        return "Conosco già "+ user+" e non sei te"
                 else:
-                    return "Conosco già "+ user+" e non sei te"
-            else:
-                var = line[0] + ";" + code + "\n"
-                f =  open(UTENTI_PATH, "w")
-                with f:
-                    file.append(result)
-                    f.close
-                    for var in file:
-                        f.write(var)
-                return risposta
-        else:
-            if  len(appo) == 3:
-                if appo[SLACK_USER] == code:
-                    risposta = "Non sei "+ user +", sei "+ appo[UTENTE]
+                    user_code = line[0] + ";" + code + "\n"
+                    f =  open(UTENTI_PATH, "w")
+                    with f:
+                        for j,var in enumerate(file):
+                            if i == j:
+                                var = user_code
+                            f.write(var)
+                        f.close
                     return risposta
+            else:
+                if  len(appo) == 3:
+                    if appo[SLACK_USER] == code:
+                        risposta = "Non sei "+ user +", sei "+ appo[UTENTE]
+                        return risposta
 
     #only if the user has not been found
     if INFO_USER_TAG == []:
-        risposta = "passa 3 volte il tag, hai "+ str(TIME_TAG) + "minuto"
+        out_file = open("tagpassed.txt","w")
+        out_file.write("")
+        out_file.close()
+        risposta = "passa 3 volte il tag, hai "+ str(TIME_TAG) + "minuti"
         start = time.time()
         final = start + (60 * TIME_TAG)
         INFO_USER_TAG.append(user)
@@ -335,30 +337,33 @@ def add_user_tag():
     solution = []
     find = True 
     result = "" 
+    print tagf
 
     #research tag in file
     #example file: tag code;time(%H:%M)
     text = "ERRORE: il tag non è stato passato correttamente"
     if tagf != []:
         for var in tagf:
-            if var != "" or var != "\n":
-                tag_time = string.split(var, ";")
+            tag_time = string.split(var, ";")
+            if len(tag_time) == 2:
                 time = tag_time[1]
                 time = string.split(time, "\n")
                 time = time [0]
                 if time < str(INFO_USER_TAG[FINAL]) and time > str(INFO_USER_TAG[START]):
                     solution.append(tag_time[0])
-
+        print solution
         if len(solution) >= 3:
             result = solution[0]
             for var in solution:
                 if result != var:
                     find=False
                     continue
+        else:
+            find = False
     else:
         find = False
             
-        
+    print find
     #check if the tag was found
     
     if find:
@@ -380,6 +385,7 @@ def add_user_tag():
         channel=INFO_USER_TAG[CHANN],
         text= text
     )
+
     INFO_USER_TAG = []
 
 def ricerca_utente(code):
@@ -398,8 +404,9 @@ def ricerca_utente(code):
             slack_utente = string.split( slack_utente , "\n")
             slack_utente = slack_utente[0]
             if slack_utente == code:
+                print user[1]
                 return user[1]
-    return ""
+    return None
 
 def periodic_events(events_list):
     """

@@ -32,17 +32,27 @@ def parse_bot_commands(slack_events):
         The command is considered only if the nanoverde is called or if 
         the user has already presented itself
     """
-    for event in slack_events:	    
-        if event["type"] == "message" and not "subtype" in event:	        
+    for event in slack_events:
+        print "evento"	    
+        if event["type"] == "message" and not "subtype" in event:
+            print "mesage"	    
+            print event["user"]    
             message = event["text"]	          
             user_id=""	
             slack_user = research_code()  
-            return slack_user
-            for i in slack_user:      
-                if not event["user"] == i:	            
+            print slack_user
+            for i in slack_user:   
+                print "entrato"   
+                if not event["user"] == i:
+                    print "no"	            
                     user_id, message = parse_direct_mention(event["text"])	
-                if user_id == bot_id or event["user"] == i:	          
+                if user_id == bot_id or event["user"] == i:	   
+                    print "si"
+                    print message       
                     return message, event
+            user_id, message = parse_direct_mention(event["text"])	
+            if user_id == bot_id :	      
+                return message, event
     return None, None
 
 
@@ -85,16 +95,18 @@ def handle_command(command, event, parameters):
     response = None
     # This is where you start to implement more commands!
     comando = command.rsplit(" ")
-    utente = ricerca_utente(event["user"])
+    utente = ricerca_utente(event["user"], parameters)
 
     if command.startswith(parameters["PRESENTATION_COMMAND"]):
         if len(comando) >= 3:
             response = new_user(comando,event, parameters)
 
     if command.startswith(parameters["CIAO_COMMAND"]):
-        response = "ciao "+ricerca_utente(event["user"])+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
-        if utente == "":
-            response = response + "Te chi sei? non ti conosco"
+        if utente is None:
+            response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
+        else:
+             response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+
     if command.startswith(parameters["COMESTAI_COMMAND"]):
         response = "io bene, te?"
                 
@@ -111,7 +123,7 @@ def handle_command(command, event, parameters):
     if command.startswith(parameters["HELP_COMMAND"]):
         response = help_response
 
-    if ricerca_utente(event["user"]) != None :
+    if utente != None :
         if command.startswith(parameters["AWARD_COMMAND"]):
             response = verify_award(command, event,parameters)
 
@@ -132,26 +144,26 @@ def missing_hours(event, parameters):
     """
         Executes bot command to calculate missing hours to collect the prize
     """
-    utente = ricerca_utente(event["user"])
+    utente = ricerca_utente(event["user"], parameters)
     number_day = datetime.datetime.today().weekday()
     daynow = datetime.datetime.today()
     
-    if number_day == parameters["OPEN_DAY"]:
-        delta_l = datetime.timedelta(days = parameters["OPEN_DAY"])
+    if number_day == int(parameters["OPEN_DAY"]):
+        delta_l = datetime.timedelta(days = int(parameters["OPEN_DAY"]))
         v = daynow
         l = v - delta_l
-    if number_day < parameters["OPEN_DAY"]:
+    if number_day < int(parameters["OPEN_DAY"]):
         delta_l = datetime.timedelta(days = (number_day))
         l = daynow - delta_l
-        delta_v = datetime.timedelta(days = (parameters["OPEN_DAY"] - number_day))
+        delta_v = datetime.timedelta(days = (int(parameters["OPEN_DAY"]) - number_day))
         v = daynow + delta_v
     if number_day == 0:
         l = daynow
-        delta_v = datetime.timedelta(days = (parameters["OPEN_DAY"]))
+        delta_v = datetime.timedelta(days = (int(parameters["OPEN_DAY"])))
         v = daynow + delta_l
-    if number_day > parameters["OPEN_DAY"]:
+    if number_day > int(parameters["OPEN_DAY"]):
         delta_l = datetime.timedelta(days = number_day)
-        delta_v = datetime.timedelta(days = number_day - parameters["OPEN_DAY"])
+        delta_v = datetime.timedelta(days = number_day - int(parameters["OPEN_DAY"]))
         v = daynow - delta_v
         l = daynow - delta_l
 
@@ -215,9 +227,7 @@ def open_nano(parameters):
                 day = day + 1
     min = 0
     sec = 0
-    if minutes > 0:
-        hrs = hrs - 1
-        min = 60 - minutes
+    min = 60 - minutes
     if seconds > 0 :
         if min > 0:
             min = min -1
@@ -239,7 +249,7 @@ def verify_award(comando, event, parameters):
     DATA = 1
 
     response = "Non hai ancora ritirato il premio"
-    utente = ricerca_utente(event['user'])
+    utente = ricerca_utente(event['user'], parameters)
 
     if utente != "":
         oggi = datetime.datetime.today()
@@ -479,7 +489,7 @@ def ConfigSectionMap(section):
 
 
 if __name__ == "__main__":
-    conf_path = "nanoverde.bot.conf"
+    conf_path = "/etc/nanoverde.bot.conf"
     Config = ConfigParser.ConfigParser()
     Config.read(conf_path)
     Config.sections()

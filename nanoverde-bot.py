@@ -100,38 +100,45 @@ def handle_command(command, event, parameters):
     if command.startswith(parameters["PRESENTATION_COMMAND"]):
         if len(comando) >= 3:
             response = new_user(comando,event, parameters)
-
-    if command.startswith(parameters["CIAO_COMMAND"]):
-        if utente is None:
-            response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
+    else:
+        if command.startswith(parameters["CIAO_COMMAND"]):
+            if utente is None:
+                response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
+            else:
+                response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
         else:
-             response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+            if command.startswith(parameters["COMESTAI_COMMAND"]):
+                response = "io bene, te?"
 
-    if command.startswith(parameters["COMESTAI_COMMAND"]):
-        response = "io bene, te?"
-                
-    if command.startswith(parameters["NATALE_COMMAND"]):
-        oggi = datetime.datetime.now()
-        natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")
-        gg = natale - oggi
-        oggi = oggi.strftime("%y/%m/%d")
-        response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"
+            else:
+                if command.startswith(parameters["NATALE_COMMAND"]):
+                    oggi = datetime.datetime.now()
+                    natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")
+                    gg = natale - oggi
+                    oggi = oggi.strftime("%y/%m/%d")
+                    response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"
 
-    if command.startswith(parameters["APERTURA_COMMAND"]):
-        response = open_nano(parameters)
+                else:
+                    if command.startswith(parameters["APERTURA_COMMAND"]):
+                        response = open_nano(parameters)
 
-    if command.startswith(parameters["HELP_COMMAND"]):
-        response = help_response
+                    else:
+                        if command.startswith(parameters["HELP_COMMAND"]):
+                            response = help_response
 
-    if utente != None :
-        if command.startswith(parameters["AWARD_COMMAND"]):
-            response = verify_award(command, event,parameters)
+                        else:
+                            if utente != None :
+                                if command.startswith(parameters["AWARD_COMMAND"]):
+                                    response = verify_award(command, event,parameters)
 
-        if command.startswith(parameters["MISSINGH_COMMAND"]):
-            response = missing_hours(event,parameters) 
-    
-    # if parameters["ANSWER_ALWAYS"] == "False" and response == None:
-    #     response = default_response
+                                else:
+                                    if command.startswith(parameters["MISSINGH_COMMAND"]):
+                                        response = missing_hours(event,parameters) 
+
+                            else:
+
+                                if parameters["ANSWER_ALWAYS"] == "False":
+                                    response = default_response
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -524,7 +531,7 @@ if __name__ == "__main__":
             periodic_events(events_list)
             if INFO_USER_TAG != []:
                 print "tag"
-                trovato = add_user_tag()
+                trovato = add_user_tag(parameters)
                 if time.time() > INFO_USER_TAG[3]:
                     slack_client.api_call(
                         "chat.postMessage",

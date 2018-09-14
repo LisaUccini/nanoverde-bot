@@ -24,7 +24,7 @@ RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 
 
 
-def parse_bot_commands(slack_events):
+def parse_bot_commands(slack_events, parameters):
     """
         Parses a list of events coming from the Slack RTM API to find bot commands.
         If a bot command is found, this function returns a tuple of command and channel.
@@ -32,31 +32,30 @@ def parse_bot_commands(slack_events):
         The command is considered only if the nanoverde is called or if 
         the user has already presented itself
     """
-    for event in slack_events:
-        print "evento"	    
-        if event["type"] == "message" and not "subtype" in event:
-            print "mesage"	    
-            print event["user"]    
-            message = event["text"]	          
-            user_id=""	
-            slack_user = research_code()  
-            print slack_user
-            for i in slack_user:   
-                print "entrato"   
-                if not event["user"] == i:
-                    print "no"	            
-                    user_id, message = parse_direct_mention(event["text"])	
+    global bot_id
+
+    for event in slack_events:    
+        if event["type"] == "message" and not "subtype" in event:  
+            message = event["text"]	 
+            user_id, messagex = parse_direct_mention(event["text"])	      
+            print type(bot_id), bot_id
+            print user_id
+            slack_user = research_code(parameters)
+            for i in slack_user:    
+                if not event["user"] == i or user_id == bot_id:           
+                    message = messagex
+                    print user_id, message
                 if user_id == bot_id or event["user"] == i:	   
-                    print "si"
-                    print message       
+                    print "ahahahhhahahah"
+                    print event["user"] == i
+                    print user_id == bot_id    
                     return message, event
-            user_id, message = parse_direct_mention(event["text"])	
             if user_id == bot_id :	      
-                return message, event
+                return messagex, event
     return None, None
 
 
-def research_code():
+def research_code(parameters):
     slack_user = []
     f = open(parameters["utenti_path"],"r")
     users = f.readlines()
@@ -65,7 +64,6 @@ def research_code():
     for i in users:
         users_split = string.split(i, ";")
         if len(users_split) == 3:
-            print "okix"
             su = users_split[2]
             su = string.split(su, "\n")
             su = su[0]
@@ -96,51 +94,54 @@ def handle_command(command, event, parameters):
     # This is where you start to implement more commands!
     comando = command.rsplit(" ")
     utente = ricerca_utente(event["user"], parameters)
+    print command
 
     if command.startswith(parameters["PRESENTATION_COMMAND"]):
-        if len(comando) >= 3:
-            response = new_user(comando,event, parameters)
-    else:
-        if command.startswith(parameters["CIAO_COMMAND"]):
-            if utente is None:
-                response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
-            else:
-                response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+        print "presentation"
+        response = new_user(comando,event, parameters)
+
+    if command.startswith(parameters["CIAO_COMMAND"]):
+        print "ciao"
+        if utente is None:
+            response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
         else:
-            if command.startswith(parameters["COMESTAI_COMMAND"]):
-                response = "io bene, te?"
+            response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+                  
+    if command.startswith(parameters["COMESTAI_COMMAND"]):	
+        print "come stai"
+        response = "io bene, te?"	            
+                	                
+    if command.startswith(parameters["NATALE_COMMAND"]):
+        print "Natale"	                   
+        oggi = datetime.datetime.now()	                   
+        natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")	                 
+        gg = natale - oggi	                  
+        oggi = oggi.strftime("%y/%m/%d")	                    
+        response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"	
+           
+    if command.startswith(parameters["APERTURA_COMMAND"]):
+        print "apertura"
+        response = open_nano(parameters)	   
 
-            else:
-                if command.startswith(parameters["NATALE_COMMAND"]):
-                    oggi = datetime.datetime.now()
-                    natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")
-                    gg = natale - oggi
-                    oggi = oggi.strftime("%y/%m/%d")
-                    response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"
+    if command.startswith(parameters["HELP_COMMAND"]):
+        print "help"
+        response = help_response
 
-                else:
-                    if command.startswith(parameters["APERTURA_COMMAND"]):
-                        response = open_nano(parameters)
+    if utente != None :	
+        if command.startswith(parameters["AWARD_COMMAND"]):	  
+            print "premio"     
+            response = verify_award(command, event,parameters)	   
 
-                    else:
-                        if command.startswith(parameters["HELP_COMMAND"]):
-                            response = help_response
+        if command.startswith(parameters["MISSINGH_COMMAND"]):
+            print "ore"	                
+            response = missing_hours(event,parameters) 	
 
-                        else:
-                            if utente != None :
-                                if command.startswith(parameters["AWARD_COMMAND"]):
-                                    response = verify_award(command, event,parameters)
+    if response == None:	        
+        response = default_response	                                        
 
-                                else:
-                                    if command.startswith(parameters["MISSINGH_COMMAND"]):
-                                        response = missing_hours(event,parameters) 
-
-                            else:
-
-                                if parameters["ANSWER_ALWAYS"] == "False":
-                                    response = default_response
 
     # Sends the response back to the channel
+    print response
     slack_client.api_call(
         "chat.postMessage",
         channel=event["channel"],
@@ -330,14 +331,12 @@ def new_user(comando, event, parameters):
             else:
                 if  len(appo) == 3:
                     if appo[SLACK_USER] == code:
-                        print "wtf"
                         risposta = "Non sei "+ user +", sei "+ appo[UTENTE]
                         continua = False
                         return risposta
                         continue
 
     #only if the user has not been found
-    print continua
     if INFO_USER_TAG == [] and continua:
         risposta = "passa 3 volte il tag, hai "+ str(parameters["TIME_TAG"]) + "minuti"
         start = time.time()
@@ -517,7 +516,10 @@ if __name__ == "__main__":
     parameters["OPEN_HOUR"] = ConfigSectionMap("parameters")["open_hour"]
     parameters["ANSWER_ALWAYS"] = ConfigSectionMap("parameters")["answer_always"]
     parameters["TOKEN"] = ConfigSectionMap("parameters")["token"]
-    print parameters
+
+    for k, i in parameters.items():
+        i = string.split(i, "\n")
+        parameters[k] = i[0]
 
     events_list = [["domani alle 18 apre il nanoverde", 3, datetime.time(18, 0), ['DCNCW4E0P']], ["apertura", 4, 3, ['DCNCW4E0P']]]
     
@@ -526,6 +528,7 @@ if __name__ == "__main__":
         print("Starter Bot connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         bot_id = slack_client.api_call("auth.test")["user_id"]
+        print type(bot_id)
 
         while True:
             periodic_events(events_list)
@@ -542,7 +545,7 @@ if __name__ == "__main__":
                 if trovato:
                     INFO_USER_TAG = []
                     
-            command, event = parse_bot_commands(slack_client.rtm_read())
+            command, event = parse_bot_commands(slack_client.rtm_read(), parameters)
             if command:
                 print "arrivato comando"
                 handle_command(command, event, parameters)

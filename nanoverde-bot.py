@@ -42,12 +42,11 @@ def parse_bot_commands(slack_events, parameters):
             print user_id
             slack_user = research_code(parameters)
             for i in slack_user:    
-                if not event["user"] == i or user_id == bot_id:           
+                if not event["channel"] == i or user_id == bot_id:           
                     message = messagex
                     print user_id, message
-                if user_id == bot_id or event["user"] == i:	   
-                    print "ahahahhhahahah"
-                    print event["user"] == i
+                if user_id == bot_id or event["channel"] == i:
+                    print event["channel"] == i
                     print user_id == bot_id    
                     return message, event
             if user_id == bot_id :	      
@@ -93,7 +92,7 @@ def handle_command(command, event, parameters):
     response = None
     # This is where you start to implement more commands!
     comando = command.rsplit(" ")
-    utente = ricerca_utente(event["user"], parameters)
+    utente = ricerca_utente(event["channel"], parameters)
     print command
 
     if command.startswith(parameters["PRESENTATION_COMMAND"]):
@@ -105,7 +104,7 @@ def handle_command(command, event, parameters):
         if utente is None:
             response = "ciao,io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo. Te chi sei? non ti conosco"
         else:
-            response = "ciao "+ricerca_utente(event["user"], parameters)+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
+            response = "ciao "+utente+", io sono nanoverde-bot. Sono bello, basso, verde e regalo cibo e bevande a chi è stato bravo."
                   
     if command.startswith(parameters["COMESTAI_COMMAND"]):	
         print "come stai"
@@ -136,7 +135,7 @@ def handle_command(command, event, parameters):
             print "ore"	                
             response = missing_hours(event,parameters) 	
 
-    if response == None:	        
+    if response is None and utente is not None and parameters["ANSWER_ALWAYS"] == "True":	        
         response = default_response	                                        
 
 
@@ -152,7 +151,7 @@ def missing_hours(event, parameters):
     """
         Executes bot command to calculate missing hours to collect the prize
     """
-    utente = ricerca_utente(event["user"], parameters)
+    utente = ricerca_utente(event["channel"], parameters)
     number_day = datetime.datetime.today().weekday()
     daynow = datetime.datetime.today()
     
@@ -257,7 +256,7 @@ def verify_award(comando, event, parameters):
     DATA = 1
 
     response = "Non hai ancora ritirato il premio"
-    utente = ricerca_utente(event['user'], parameters)
+    utente = ricerca_utente(event['channel'], parameters)
 
     if utente != "":
         oggi = datetime.datetime.today()
@@ -287,7 +286,7 @@ def new_user(comando, event, parameters):
     UTENTE = 1
     SLACK_USER =  2
     global INFO_USER_TAG
-    code = event["user"]
+    code = event["channel"]
     user = comando[2]
     user = user.encode('utf-8')
     risposta = "Benvenuta, " + comando[2]
@@ -345,7 +344,8 @@ def new_user(comando, event, parameters):
         INFO_USER_TAG.append(code)
         INFO_USER_TAG.append(start)
         INFO_USER_TAG.append(final)
-        INFO_USER_TAG.append(event["channel"])
+
+        #[name, channel, time start, time stop]
     else:
         risposta = "in questo momento sto aggiungendo un'altro utente, ritenta tra 5 minuti"
 
@@ -358,8 +358,7 @@ def add_user_tag(parameters):
     START = 2
     FINAL = 3
     USER = 0
-    USER_SLACK = 1
-    CHANN = 4
+    CHANN = 1
     global INFO_USER_TAG
 
     f =  open(parameters["tag_path"], "r")
@@ -404,7 +403,7 @@ def add_user_tag(parameters):
     
     if find:
         text = "Benvenuta " + INFO_USER_TAG[USER]
-        utente = code_max + ";" + INFO_USER_TAG[USER] + ";" + INFO_USER_TAG[USER_SLACK] + "\n"
+        utente = code_max + ";" + INFO_USER_TAG[USER] + ";" + INFO_USER_TAG[CHANN] + "\n"
         f =  open(parameters["utenti_path"], "r")
         with f:
             file=f.readlines()
@@ -460,7 +459,7 @@ def periodic_events(events_list):
 
     response = ""
 
-    if hours > 9 and hours < 22:
+    if hours > 9 :
 
         #research and analysis of events and write events to channels
         for val in events_list:
@@ -495,10 +494,11 @@ def ConfigSectionMap(section):
 
 
 if __name__ == "__main__":
+    print "inizio"
     conf_path = "/etc/nanoverde.bot.conf"
     Config = ConfigParser.ConfigParser()
     Config.read(conf_path)
-    Config.sections()
+    print Config.sections()
     parameters = {}
     parameters["utenti_path"] = ConfigSectionMap("path")["utenti_path"]
     parameters["tag_path"] = ConfigSectionMap("path")["tag_path"]
@@ -535,10 +535,10 @@ if __name__ == "__main__":
             if INFO_USER_TAG != []:
                 print "tag"
                 trovato = add_user_tag(parameters)
-                if time.time() > INFO_USER_TAG[3]:
+                if time.time() > INFO_USER_TAG[3] and not(trovato):
                     slack_client.api_call(
                         "chat.postMessage",
-                        channel = INFO_USER_TAG[4],
+                        channel = INFO_USER_TAG[1],
                         text = "Errore, il tag non è stato passato correttamente"
                     )   
                     INFO_USER_TAG = []   

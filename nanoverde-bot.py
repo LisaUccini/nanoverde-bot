@@ -37,17 +37,14 @@ def parse_bot_commands(slack_events, parameters):
     for event in slack_events:    
         if event["type"] == "message" and not "subtype" in event:  
             message = event["text"]	 
-            user_id, messagex = parse_direct_mention(event["text"])	      
-            print type(bot_id), bot_id
-            print user_id
+            user_id, messagex = parse_direct_mention(event["text"])
             slack_user = research_code(parameters)
+            if user_id == bot_id:       
+                message = messagex
+
             for i in slack_user:    
-                if not event["channel"] == i or user_id == bot_id:           
-                    message = messagex
-                    print user_id, message
                 if user_id == bot_id or event["channel"] == i:
-                    print event["channel"] == i
-                    print user_id == bot_id    
+                    print message 
                     return message, event
             if user_id == bot_id :	      
                 return messagex, event
@@ -86,7 +83,7 @@ def handle_command(command, event, parameters):
         Executes bot command if the command is known
     """
     # Default response is help text for the user
-    help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancati - quante ore mi mancano per poter prendere il premio"
+    help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancanti - quante ore mi mancano per poter prendere il premio"
     default_response = "Scusa, non ho capito o non ti conosco"
     # Finds and executes the given command, filling in response
     response = None
@@ -116,7 +113,7 @@ def handle_command(command, event, parameters):
         natale = datetime.datetime.strptime('12/24/2018', "%m/%d/%Y")	                 
         gg = natale - oggi	                  
         oggi = oggi.strftime("%y/%m/%d")	                    
-        response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" a Natale!!"	
+        response = "Oggi è il "+str(oggi)+", mancano solo "+str(gg.days)+" giorni a Natale!!"	
            
     if command.startswith(parameters["APERTURA_COMMAND"]):
         print "apertura"
@@ -300,44 +297,58 @@ def new_user(comando, event, parameters):
         f.close
 
     #verify that the user does not already exist
-    for i,var in enumerate(file):
-        line = string.split(var,"\n")
-        appo = line[0]
-        appo = string.split(appo,";")
-        if len(appo) >= 2:
-            if appo[UTENTE] == user:
+    slack_chann = research_code(parameters)
+    print slack_chann
+    for i in slack_chann:
+        if i == code:
+            print "trovato codice"
+            for j, var in enumerate(file):
+                line = string.split(var,"\n")
+                appo = line[0]
+                appo = string.split(appo,";")
                 if len(appo) == 3:
-                    if appo[SLACK_USER] == code:
+                    print "trovato"
+                    if i == appo[SLACK_USER]:
+                        print "codice uguale"
+                        if appo[UTENTE] == user:
+                            continua = False
+                            return "Gia ti conosco " + user
+                            continue
+                        else:
+                            continua = False
+                            return "Non sei "+ user + " sei " + appo[UTENTE]
+                            continue
+    if continua:
+        print file
+        for j, var in enumerate(file):
+            line = string.split(var,"\n")
+            appo = line[0]
+            appo = string.split(appo,";")
+            print appo
+            if len(appo) >= 2:
+                if appo[UTENTE] == user:
+                    print "nomi uguali"
+                    if len(appo) == 3:
                         continua = False
-                        return "Già ti conosco "+ user
+                        return "Gia conosco "+user+ " e non sei te"
                         continue
                     else:
-                        continua = False
-                        return "Conosco già "+ user+" e non sei te"
-                        continue
-                else:
-                    user_code = line[0] + ";" + code + "\n"
-                    f =  open(parameters["utenti_path"], "w")
-                    with f:
-                        for j,var in enumerate(file):
-                            if i == j:
-                                var = user_code
-                            f.write(var)
-                        f.close
-                    continua = False
-                    return risposta
-                    continue
-            else:
-                if  len(appo) == 3:
-                    if appo[SLACK_USER] == code:
-                        risposta = "Non sei "+ user +", sei "+ appo[UTENTE]
+                        print "nuovo"
+                        user_code = line[0] + ";" + code + "\n"
+                        f =  open(parameters["utenti_path"], "w")
+                        with f:
+                            for i,var in enumerate(file):
+                                if i == j:
+                                    var = user_code
+                                f.write(var)
+                            f.close
                         continua = False
                         return risposta
                         continue
 
     #only if the user has not been found
     if INFO_USER_TAG == [] and continua:
-        risposta = "passa 3 volte il tag, hai "+ str(parameters["TIME_TAG"]) + "minuti"
+        risposta = "passa 3 volte il tag, hai "+ str(parameters["TIME_TAG"]) + " minuto/i"
         start = time.time()
         final = start + (60 * int(parameters["TIME_TAG"]))
         INFO_USER_TAG.append(user)

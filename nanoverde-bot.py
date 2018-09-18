@@ -76,7 +76,10 @@ def handle_command(command, event, parameters):
 
     if command.startswith(parameters["PRESENTATION_COMMAND"]):
         print "presentation"
-        response = new_user(comando,event, parameters)
+        if event["channel"][0] == "D":
+            response = new_user(comando,event, parameters)
+        else:
+            response = utente + " presentati in un canale privato. Only you and I."
 
     if command.startswith(parameters["CIAO_COMMAND"]):
         print "ciao"
@@ -123,11 +126,8 @@ def handle_command(command, event, parameters):
         text=response
     )
 
-def missing_hours(event, parameters):
-    """
-        Executes bot command to calculate missing hours to collect the prize
-    """
-    utente = ricerca_utente(event["user"], parameters)
+def calculate_hours(parameters, utente):
+    
     number_day = datetime.datetime.today().weekday()
     daynow = datetime.datetime.today()
     print utente
@@ -161,7 +161,7 @@ def missing_hours(event, parameters):
                             utente+"?from_date="+l+"&to_date="+v)
         except requests.exceptions.ConnectionError:
             print ("Impossibile contattare il server.")
-            return False
+            return None
 
         if r.status_code == 200:
             a = r.json()
@@ -173,12 +173,24 @@ def missing_hours(event, parameters):
                 totaleOre = totaleOre+ore+float(o[0])
 
             missing = 35 - totaleOre
+            return missing
+    return None
 
-            response = "Ti mancano "+ str(missing) +" ore"
-            return response
-        response = "Errore nella richiesta al server"  + str(r.status_code)
+
+def missing_hours(event, parameters):
+    """
+        Executes bot command to calculate missing hours to collect the prize
+    """
+    utente = ricerca_utente(event["user"], parameters)
+    missing = calculate_hours(parameters, utente)
+    if reponse is None:
+        if utente is None:
+            response = "Non ti conosco, prima presentati"
+        else:
+            response = "Errore nella richiesta al server"
     else:
-        response = "Non ti conosco, prima presentati"
+        response = "Ti mancano "+ str(missing) +" ore"
+        
     return response
 
 def open_nano(parameters):
@@ -288,7 +300,7 @@ def new_user(comando, event, parameters):
         line = string.split(var,"\n")
         appo = line[0]
         appo = string.split(appo,";")
-        if len(appo) == 3:
+        if len(appo) == 4:
             slack_u.append(appo[2])
 
     for i in slack_u:
@@ -297,7 +309,7 @@ def new_user(comando, event, parameters):
                 line = string.split(var,"\n")
                 appo = line[0]
                 appo = string.split(appo,";")
-                if len(appo) == 3:
+                if len(appo) == 4:
                     if i == appo[SLACK_USER]:
                         if appo[UTENTE] == user:
                             continua = False
@@ -314,12 +326,12 @@ def new_user(comando, event, parameters):
             appo = string.split(appo,";")
             if len(appo) >= 2:
                 if appo[UTENTE] == user:
-                    if len(appo) == 3:
+                    if len(appo) == 4:
                         continua = False
                         return "Gia conosco "+user+ " e non sei te"
                         continue
                     else:
-                        user_code = line[0] + ";" + code + "\n"
+                        user_code = line[0] + ";" + code + ";" + event["channel"]+ "\n"
                         f =  open(parameters["utenti_path"], "w")
                         with f:
                             for i,var in enumerate(file):
@@ -401,7 +413,7 @@ def add_user_tag(parameters):
     
     if find:
         text = "Benvenuta " + INFO_USER_TAG[USER]
-        utente = code_max + ";" + INFO_USER_TAG[USER] + ";" + INFO_USER_TAG[S_USER] + "\n"
+        utente = code_max + ";" + INFO_USER_TAG[USER] + ";" + INFO_USER_TAG[S_USER] + ";" + INFO_USER_TAG[CHANN] + "\n"
         f =  open(parameters["utenti_path"], "r")
         with f:
             file=f.readlines()
@@ -432,7 +444,7 @@ def ricerca_utente(code, parameters):
 
     for val in file_utenti:
         user = string.split( val, ";")
-        if len(user)==3:
+        if len(user)==4:
             slack_utente = user[2]
             slack_utente = string.split(slack_utente, "\n")
             slack_utente = slack_utente[0]
@@ -476,6 +488,69 @@ def periodic_events(events_list):
                         channel = i,
                         text = response
                     )
+
+def event_verify(parameters):
+    with open (parameters["tag_path"], "r") as f:
+        tagf = f.readlines()
+        f.close()
+
+    with open(parameters["utenti_path"], "r") as u:
+        userf = u.readlines()
+        u.close()
+
+    code = ""
+    user = ""
+    msg = ""
+    text = ""
+    tag = ""
+    time_right = False
+    if tagf != []:
+        i = tagf[-1]
+        i = string.split(i, ";")
+        if len(i) == 4:
+            user = i[0]
+            msg = i[1]
+            tag = i[3]
+            t = i[2]
+            t = float(t)
+            now = time.time()
+            if now - t < 0.150:
+                time_right = True
+                for j in userf:
+                    j = string.split(j, ";")
+                    if len(j) == 4:
+                        if j[1] == user:
+                            code = j[3]
+                            continue
+        channel = code
+        
+        if msg == "erogato":
+            text = "hai ritirato il premio, goditi la tua bibita e buon fine settimana !! "
+        if msg == "premio":
+            text = "hai già ritirato il premio"
+        if msg == "ore":
+            missing = calculate_hours(parameters, user)
+            if missing is None:
+                "ERRORE nella richiesta del server"
+            else:
+                text = "ti mancano "+ missing +" ore da segnare"
+        if msg == "chiuso":
+            text = open_nano(parameters)
+        if msg == "tag" :
+            channel = "G5QV2NYLW"
+            text = "l'utente "+ utente+" con il tag "+ tag+ "non si è presentato"
+        if code == "" and tag != "" :
+            channel = "G5QV2NYLW"
+            text = "l'utente "+ utente+" con il tag "+ tag+ "non si è presentato"
+        channel = string.split(channel, "\n")
+        channel = channel[0]
+        if time_right:
+            slack_client.api_call(
+                    "chat.postMessage",
+                    channel = channel,
+                    text = text
+                )
+
 
 def ConfigSectionMap(section):
     dict1 = {}
@@ -539,6 +614,7 @@ if __name__ == "__main__":
                     INFO_USER_TAG = []   
                 if trovato:
                     INFO_USER_TAG = []
+            event_verify(parameters)
             event = {}  
             command, event = parse_bot_commands(slack_client.rtm_read(), parameters)
             

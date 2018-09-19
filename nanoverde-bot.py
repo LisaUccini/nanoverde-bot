@@ -66,7 +66,7 @@ def handle_command(command, event, parameters):
         Executes bot command if the command is known
     """
     # Default response is help text for the user
-    help_response = "possibili comandi: \nciao sono <nome-utente> - Presentati al bot nanoverde in modo che possa riconoscerti\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancanti - quante ore mi mancano per poter prendere il premio"
+    help_response = "possibili comandi: \nciao sono <nome-utente> -  Presentati al bot in modo che possa associare il tuo username di openerps al tuo tag. Se non ti presenti non potrai digitare ne il comando 'premio' ne il  comando 'ore mancanti' e non potrai ritirare il premio\npremio - per sapere se hai già ritirato il premio\nciao nano - \ncome stai? - \nNatale - quanti giorni mancano a Natale?\napertura - quanto tempo manca all'apertura del nanoverde\nore mancanti - quante ore mi mancano per poter prendere il premio"
     default_response = "Scusa, non ho capito o non ti conosco"
     # Finds and executes the given command, filling in response
     response = None
@@ -154,7 +154,6 @@ def calculate_hours(parameters, utente):
 
         v = v.strftime("%Y-%m-%d")
         l = l.strftime("%Y-%m-%d")
-        print v, l ,utente
         #dovrei aver sistemato le date ma bo, controllare
         try:
             r = requests.get("https://showtime.develer.com/summary/" +
@@ -167,12 +166,14 @@ def calculate_hours(parameters, utente):
             a = r.json()
             totaleOre = 0
             for k, o in a.items():
-                o = str(o)
-                o = o.split('.')
-                ore = float(o[1])/60
-                totaleOre = totaleOre+ore+float(o[0])
+                totaleOre = totaleOre + float(o)
+                print totaleOre
 
             missing = 35 - totaleOre
+
+            if totaleOre > 35:
+                missing = 0
+
             return missing
     return None
 
@@ -183,13 +184,30 @@ def missing_hours(event, parameters):
     """
     utente = ricerca_utente(event["user"], parameters)
     missing = calculate_hours(parameters, utente)
-    if reponse is None:
+    minuti = 0
+    if missing != 0:
+        missing = string.split(str(missing), ".")
+        ore = missing [0]
+        if len (missing) == 2:
+            missing[1] = "0." + missing[1]
+            minuti = float(missing[1]) * 60
+            minuti = int(minuti)
+
+
+    if missing is None:
         if utente is None:
             response = "Non ti conosco, prima presentati"
         else:
             response = "Errore nella richiesta al server"
     else:
-        response = "Ti mancano "+ str(missing) +" ore"
+        response = "Ti mancano "+ str(ore) +" ore e "+ str(minuti)+ " minuti"
+        if ore == 0 and minuti != 0:
+            response = "Ti mancano "+ str(minuti)+ " minuti"
+        if minuti == 0 and ore != 0:
+            response = "Ti mancano "+ str(ore)+ " ore"
+        if missing == 0:
+            response = "Hai segnato abbastanza ore da poter ritirare il premio"
+        
         
     return response
 
@@ -530,18 +548,36 @@ def event_verify(parameters):
             text = "hai già ritirato il premio"
         if msg == "ore":
             missing = calculate_hours(parameters, user)
+            if missing != 0:
+                missing = string.split(str(missing), ".")
+                ore = missing [0]
+                missing[1] = "0." + missing[1]
+                minuti = float(missing[1]) * 60
+                minuti = int(minuti)
+
+
             if missing is None:
-                "ERRORE nella richiesta del server"
+                if user is None:
+                    response = "Non ti conosco, prima presentati"
+                else:
+                    response = "Errore nella richiesta al server"
             else:
-                text = "ti mancano "+ missing +" ore da segnare"
+                response = "Ti mancano "+ str(ore) +" ore e "+ str(minuti)+ " minuti"
+                if ore == 0 and minuti != 0:
+                    response = "Ti mancano "+ str(minuti)+ " minuti"
+                if minuti == 0 and ore != 0:
+                    response = "Ti mancano "+ str(ore)+ " ore"
+                if missing == 0:
+                    response = "Hai segnato abbastanza ore da poter ritirare il premio"
+
         if msg == "chiuso":
             text = open_nano(parameters)
         if msg == "tag" :
             channel = "G5QV2NYLW"
-            text = "l'utente "+ utente+" con il tag "+ tag+ "non si è presentato"
+            text = "l'utente "+ user+" con il tag "+ tag+ "non si è presentato"
         if code == "" and tag != "" :
             channel = "G5QV2NYLW"
-            text = "l'utente "+ utente+" con il tag "+ tag+ "non si è presentato"
+            text = "l'utente "+ user+" con il tag "+ tag+ "non si è presentato"
         channel = string.split(channel, "\n")
         channel = channel[0]
         if time_right:
